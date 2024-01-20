@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
 )
 
 func main() {
@@ -14,8 +15,8 @@ func main() {
 	// proxyPort := 4321
 	// targetPort := 8000
 	targetURL := fmt.Sprintf("http://localhost:%s", targetPort)
-	startProxyServer(targetURL, outputPort)
 	go monitorServer(targetURL)
+	startProxyServer(targetURL, outputPort)
 }
 
 func getFlags() (string, string) {
@@ -42,4 +43,17 @@ func startProxyServer(target string, port string) {
 }
 
 func monitorServer(target string) {
+	serverIsUp := false
+	for {
+		_, err := http.Get(target)
+		if err != nil {
+			fmt.Println("Server is down :(")
+			serverIsUp = false
+		} else if !serverIsUp {
+			// push websocket
+			serverIsUp = true
+			fmt.Println("Server is back up bb")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
