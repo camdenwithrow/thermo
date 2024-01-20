@@ -40,6 +40,7 @@ func startProxyServer(target string, port string) {
 	url, _ := url.Parse(target)
 	proxy := httputil.NewSingleHostReverseProxy(url)
 
+	modifyResponse := modifyResponseWithOutputPort(port)
 	proxy.ModifyResponse = modifyResponse
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +69,13 @@ func monitorServer(target string) {
 	}
 }
 
-func modifyResponse(res *http.Response) error {
+func modifyResponseWithOutputPort(port string) func(res *http.Response) error {
+	return func(res *http.Response) error {
+		return modifyResponse(port, res)
+	}
+}
+
+func modifyResponse(port string, res *http.Response) error {
 	contentTypes := strings.Split(res.Header.Get("Content-Type"), ";")
 	isHTML := false
 	for _, contentType := range contentTypes {
@@ -90,7 +97,7 @@ func modifyResponse(res *http.Response) error {
 		// Append WebSocket script to the end of the body
 		html := string(htmlBytes)
 		bodyClosingTag := "</body>"
-		script := `<script>(function() { var ws = new WebSocket('ws://localhost:8000/ws'); ws.onmessage = function() { window.location.reload(); }; })();</script>`
+		script := fmt.Sprintf(`<script>(function() { var ws = new WebSocket('ws://localhost:%s/ws'); ws.onmessage = function() { window.location.reload(); }; })();</script>`, port)
 
 		pos := strings.LastIndex(html, bodyClosingTag)
 		newHTML := htmlBytes
