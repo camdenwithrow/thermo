@@ -69,13 +69,13 @@ func monitorServer(target string) {
 	for {
 		_, err := http.Get(target)
 		if err != nil {
-			fmt.Println("Server is down :(")
 			serverIsUp = false
 		} else if !serverIsUp {
 			// push websocket
 			serverIsUp = true
-			fmt.Println("Server is back up bb")
+			fmt.Print("Hot reloading...")
 			notifyClients()
+			fmt.Println("done :)")
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
