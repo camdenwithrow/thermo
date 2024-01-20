@@ -47,10 +47,21 @@ func startProxyServer(target string, port string) {
 		proxy.ServeHTTP(w, r)
 	})
 
-	http.HandleFunc("/ws", handleWebSocket)
+	http.HandleFunc("/thermo-ws", handleWebSocket)
 
 	fmt.Printf("Starting proxy server of %s at http://localhost:%s\n", target, port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
+}
+
+func notifyClients() {
+	for client := range clients {
+		err := client.WriteMessage(websocket.TextMessage, []byte("reload"))
+		if err != nil {
+			log.Println("Error sending message:", err)
+			client.Close()
+			delete(clients, client)
+		}
+	}
 }
 
 func monitorServer(target string) {
@@ -64,6 +75,7 @@ func monitorServer(target string) {
 			// push websocket
 			serverIsUp = true
 			fmt.Println("Server is back up bb")
+			notifyClients()
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -97,7 +109,7 @@ func modifyResponse(port string, res *http.Response) error {
 		// Append WebSocket script to the end of the body
 		html := string(htmlBytes)
 		bodyClosingTag := "</body>"
-		script := fmt.Sprintf(`<script>(function() { var ws = new WebSocket('ws://localhost:%s/ws'); ws.onmessage = function() { window.location.reload(); }; })();</script>`, port)
+		script := fmt.Sprintf(`<script>(function() { var ws = new WebSocket('ws://localhost:%s/thermo-ws'); ws.onmessage = function() { window.location.reload(); }; })();</script>`, port)
 
 		pos := strings.LastIndex(html, bodyClosingTag)
 		newHTML := htmlBytes
@@ -136,5 +148,4 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-
 }
